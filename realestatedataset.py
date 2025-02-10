@@ -1,157 +1,176 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import os as os
-from pathlib import Path
 import logging
+from pathlib import Path
+import matplotlib.pyplot as plt
+import pandas as pd
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 
-def main():
-    file_path = 'small_dataset.csv'
-    data = load_data(file_path)
-    if data is not None:
-        data = clean_data(data)
-        analyze_data(data)
-        plot_data(data)
-        
-# Load dataset
-def load_data(file_path: str):
-    path = Path(file_path)
-   
-    if not path.exists():
-        logging.error(f"File not found: {file_path}")
-        raise FileNotFoundError(f"The file {file_path} was not found.")
+# Configureing Module-Based Logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    
+def main() -> None:
+    file_path: str = 'small_dataset.csv'
     
     try:
+        data = load_data(file_path)
+    except FileNotFoundError as e:
+        logger.error(e)
+        return
+
+    data = clean_data(data)
+    analyze_data(data)
+    plot_data(data)
+   
+    """
+    Main function that orchestrates data loading, cleaning, analysis, and plotting.
+    """
+
+def load_data(file_path: str) -> pd.DataFrame:
+    path = Path(file_path)
+    if not path.exists():
+        logger.error(f"File not found: {file_path}")
+        raise FileNotFoundError(f"The file {file_path} was not found.")
+    try:
         data = pd.read_csv(path)
-        logging.info("Data loaded successfully.")
+        logger.info("Data loaded successfully.")
         return data
-    
     except Exception as e:
-        logging.error(f"Error reading {file_path}: {e}")
-        return None
+        logger.error(f"Error reading {file_path}: {e}")
+        raise
     
+    """
+        Load the dataset from a CSV file.
 
-# Cleaning The Dataset
+        Args:
+            file_path (str): Path to the CSV file.
 
+        Returns:
+            pd.DataFrame: Loaded data as a Pandas DataFrame.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            Exception: If there is an error reading the CSV.
+    """
+    
 def clean_data(data: pd.DataFrame) -> pd.DataFrame:
+    # Remove duplicate rows
     duplicate_count = data.duplicated().sum()
-    logging.info(f"Duplicate rows found: {duplicate_count}")
+    logger.info(f"Duplicate rows found: {duplicate_count}")
     data = data.drop_duplicates()
 
+    # Remove rows with missing values
     missing_before = data.isnull().sum().sum()
-    logging.info(f"Total missing values before cleaning: {missing_before}")
+    logger.info(f"Total missing values before cleaning: {missing_before}")
     data = data.dropna()
-    
     missing_after = data.isnull().sum().sum()
-    logging.info(f"Total missing values after cleaning: {missing_after}")
-    
+    logger.info(f"Total missing values after cleaning: {missing_after}")
+
+    # Drop unwanted columns if they exist
     if 'brokered_by' in data.columns:
         data = data.drop(columns=['brokered_by'])
+        logger.info("Dropped 'brokered_by' column.")
 
+    # Convert specified columns to numeric if they exist
     numeric_columns = ['price', 'bed', 'bath', 'acre_lot', 'house_size']
-    
     for col in numeric_columns:
         if col in data.columns:
             try:
                 data[col] = pd.to_numeric(data[col], errors='coerce')
-                logging.info(f'Converted {col} to numeric')
+                logger.info(f"Converted '{col}' to numeric.")
             except Exception as e:
-                logging.error(f"Error converting {col}: {e}")
+                logger.error(f"Error converting '{col}': {e}")
 
-    # Converting zip code and street to string
+    # Convert specific columns to string
     if 'street' in data.columns:
         data['street'] = data['street'].astype(str)
-        logging.info("Converted street to string")
-        
+        logger.info("Converted 'street' to string.")
     if 'zip_code' in data.columns:
         data['zip_code'] = data['zip_code'].astype(str)
-        logging.info("Converted zip code to string")
+        logger.info("Converted 'zip_code' to string.")
 
-    # Rounding numerical columns
+    # Round numeric columns appropriately
     if 'price' in data.columns:
         data['price'] = data['price'].round(2)
-        
     if 'bed' in data.columns:
         data['bed'] = data['bed'].round(0).astype(int)
-        
     if 'bath' in data.columns:
         data['bath'] = data['bath'].round(0).astype(int)
-        
     if 'acre_lot' in data.columns:
         data['acre_lot'] = data['acre_lot'].round(2)
-        
     if 'house_size' in data.columns:
         data['house_size'] = data['house_size'].round(0).astype(int)
-    
+
     return data
 
-def analyze_data(data: pd.DataFrame) -> None:
+    """
+    Clean the dataset by removing duplicates, handling missing values,
+    converting data types, and rounding numeric columns.
+
+    Args:
+        data (pd.DataFrame): Raw dataset.
+
+    Returns:
+        pd.DataFrame: Cleaned dataset.
+    """
     
-    # Logging Dataset info 
-    logging.info("Dataset Information:")
+def analyze_data(data: pd.DataFrame) -> None:
+   
+    logger.info("Dataset Information:")
     data.info()
 
-    # Summary statistics
-    print("\nSummary statistics after cleaning:")
-    print(data.describe())
+    """
+    Generate bar plots for the top 50 cities by average property price and
+    average property price by bedroom count, with enhanced y-axis formatting.
 
-# Selecting numeric columns for analysis
-    numeric_columns = data.select_dtypes(include=['float64', 'int64']).columns
-    numeric_columns = [col for col in numeric_columns if col not in ['street', 'zip_code']]
-    print("\nNumeric columns:", numeric_columns)
-
-# Summary statistics for each numeric column
-    for column in numeric_columns:
-        print(f"\nSummary for {column}:")
-        print(f"Min: {data[column].min()}")
-        print(f"Max: {data[column].max()}")
-        print(f"Mean: {data[column].mean():.2f}")
-        print(f"Median: {data[column].median()}")
-        print(f"Variance: {data[column].var():.2f}")
-        print(f"Standard Deviation: {data[column].std():.2f}")
-
-
+    Args:
+        data (pd.DataFrame): The dataset to plot.
+    """
+    
 def plot_data(data: pd.DataFrame) -> None:
-# Grouping and analyzing price in regards to city
-    price_by_city = data.groupby('city')['price'].describe()
-    print("\nSummary Statistics for Price by City:")
-    print(price_by_city)
+    
+    # Formatter For Dollar Values On The Y-Axis
+    dollar_formatter = FuncFormatter(lambda x, pos: '${:,.0f}'.format(x))
 
-    pivot_table = data.pivot_table(values='price', index='city', aggfunc=['count', 'mean', 'median', 'var', 'std'])
-    print("\nPivot Table Summary for Prices by City:")
-    print(pivot_table)
-
-    # Top 50 cities by average price
+    # Plotting Top 50 Cities By Average Property Price
     top_cities = data.groupby('city')['price'].mean().sort_values(ascending=False).head(50)
-
-    # Data plot
     plt.figure(figsize=(12, 6))
     top_cities.plot(kind='bar', color='skyblue')
-    plt.title('Top 50 Cities by Average Property Price')
+    plt.title('Top 50 Cities By Average Property Price')
     plt.xlabel('City')
-    plt.ylabel('Average Price (In Millions)')
+    plt.ylabel('Average Price (Dollars)')
     plt.xticks(rotation=45, ha='right')
+
+    ax = plt.gca()
+    ax.yaxis.set_major_formatter(dollar_formatter)
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.tight_layout()
     plt.show()
 
-# Grouping and analyzing price by number of bedrooms
+    # Plot: Average Property Price By Number Of Bedrooms
     if 'bed' in data.columns:
-        price_by_bed = data.groupby('bed')['price'].describe()
-        print("\nSummary Statistics for Price by Bedroom:")
-        print(price_by_bed)
+        average_price_by_bed = data.groupby('bed')['price'].mean()
+        plt.figure(figsize=(10, 6))
+        average_price_by_bed.plot(kind='bar', color='skyblue', edgecolor='black')
+        plt.title('Average Property Price by Number of Bedrooms')
+        plt.xlabel('Number of Bedrooms')
+        plt.ylabel('Average Price (Dollars)')
+        plt.xticks(rotation=0)
 
-        pivot_bedroom_price = data.pivot_table(values='price', index='bed', aggfunc=['count', 'mean', 'median', 'var', 'std'])
-        print("\nPivot Table Summary for Price by Bedroom:")
-        print(pivot_bedroom_price)
+        ax = plt.gca()
+        ax.yaxis.set_major_formatter(dollar_formatter)
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
+        plt.grid(axis='y', linestyle='--', alpha=0.7)
+        plt.tight_layout()
+        plt.show()
+        
+        """
+        Generate bar plots for the top 50 cities by average property price and
+        average property price by bedroom count, with enhanced y-axis formatting.
 
-    # Plotting average price by number of bedrooms
-    plt.figure(figsize=(10, 6))
-    average_price_by_bed = data.groupby('bed')['price'].mean()
-    average_price_by_bed.plot(kind='bar', color='skyblue', edgecolor='black')
-    plt.title('Average Property Price by Number of Bedrooms')
-    plt.xlabel('Number of Bedrooms')
-    plt.ylabel('Average Price (In Dollars)')
-    plt.xticks(rotation=0)
-    plt.show()
-
+        Args:
+        data (pd.DataFrame): The dataset to plot.
+        """
+        
 if __name__ == '__main__':
     main()
