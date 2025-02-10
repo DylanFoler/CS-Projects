@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import FuncFormatter, MaxNLocator
 
-# Configureing Module-Based Logger
+# Configuring Module-Based Logger
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     
@@ -53,24 +53,24 @@ def load_data(file_path: str) -> pd.DataFrame:
     """
     
 def clean_data(data: pd.DataFrame) -> pd.DataFrame:
-    # Remove duplicate rows
+    # Removing Duplicate Rows
     duplicate_count = data.duplicated().sum()
     logger.info(f"Duplicate rows found: {duplicate_count}")
     data = data.drop_duplicates()
 
-    # Remove rows with missing values
+    # Removing Rows With Missing Values
     missing_before = data.isnull().sum().sum()
     logger.info(f"Total missing values before cleaning: {missing_before}")
     data = data.dropna()
     missing_after = data.isnull().sum().sum()
     logger.info(f"Total missing values after cleaning: {missing_after}")
 
-    # Drop unwanted columns if they exist
+    # Dropping Unwanted Columns If They Exist
     if 'brokered_by' in data.columns:
         data = data.drop(columns=['brokered_by'])
         logger.info("Dropped 'brokered_by' column.")
 
-    # Convert specified columns to numeric if they exist
+    # Converting Specified Columns To Numeric If They Exist
     numeric_columns = ['price', 'bed', 'bath', 'acre_lot', 'house_size']
     for col in numeric_columns:
         if col in data.columns:
@@ -80,7 +80,7 @@ def clean_data(data: pd.DataFrame) -> pd.DataFrame:
             except Exception as e:
                 logger.error(f"Error converting '{col}': {e}")
 
-    # Convert specific columns to string
+    # Converting Specific Columns To String
     if 'street' in data.columns:
         data['street'] = data['street'].astype(str)
         logger.info("Converted 'street' to string.")
@@ -88,7 +88,7 @@ def clean_data(data: pd.DataFrame) -> pd.DataFrame:
         data['zip_code'] = data['zip_code'].astype(str)
         logger.info("Converted 'zip_code' to string.")
 
-    # Round numeric columns appropriately
+    # Rounding Numeric Columns Appropriately
     if 'price' in data.columns:
         data['price'] = data['price'].round(2)
     if 'bed' in data.columns:
